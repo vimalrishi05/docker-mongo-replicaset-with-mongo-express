@@ -1,0 +1,64 @@
+version: '3.7'
+
+services:
+  mongo-2.mongo:
+    hostname: mongo-2.mongo
+    container_name: mongo-2.mongo
+    image: mongo
+    entrypoint: ["/usr/bin/mongod","--keyFile","/data/file.key", "--replSet","rs","--journal","--bind_ip_all"]
+    ports:
+    - "27018:27017"
+    restart: unless-stopped
+    networks:
+      - mongo-net
+    volumes: 
+      - "./scripts/file.key:/data/file.key"
+  mongo-1.mongo:
+    hostname: mongo-1.mongo
+    container_name: mongo-1.mongo
+    image: mongo
+    entrypoint: ["/usr/bin/mongod", "--keyFile","/data/file.key","--replSet","rs","--journal","--bind_ip_all"]
+    ports:
+    - "27019:27017"
+    restart: unless-stopped
+    networks:
+      - mongo-net
+    volumes:
+      - "./scripts/file.key:/data/file.key"
+  mongo-0.mongo:
+    hostname: mongo-0.mongo
+    container_name: mongo-0.mongo
+    image: mongo
+    ports:
+      - "27017:27017"
+    entrypoint: ["/usr/bin/mongod", "--keyFile","/data/file.key","--replSet","rs","--journal","--bind_ip_all"]
+    links:
+      - mongo-1.mongo:mongo-1.mongo
+      - mongo-2.mongo:mongo-2.mongo
+    restart: unless-stopped
+    networks:
+      - mongo-net
+    volumes:
+      - "./scripts/setup.sh:/scripts/setup.sh"
+      - "./scripts/file.key:/data/file.key"
+  mongo-express:
+    container_name: mongo-express.mongo
+    image: mongo-express
+    restart: unless-stopped
+    networks:
+      - mongo-net
+    ports: 
+      - 8081:8081
+    environment: 
+      ME_CONFIG_MONGODB_SERVER: 'mongo-0.mongo,mongo-1.mongo,mongo-2.mongo'
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+    depends_on:
+      - mongo-1.mongo
+      - mongo-2.mongo
+      - mongo-0.mongo
+      
+networks:
+  mongo-net:
+    name: mongo-net
+    driver: bridge
